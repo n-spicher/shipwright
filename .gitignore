@@ -76,3 +76,5 @@ dmypy.json
 
 # pytest
 .pytest_cache/ 
+
+server/data/chroma
