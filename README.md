@@ -1,70 +1,66 @@
-# Getting Started with Create React App
+# Construction Estimator Chatbot
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A commercial construction estimator chatbot that allows users to upload PDFs, view them in the browser, and chat with an AI assistant about the document contents.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- **User Authentication**: Sign up, login, and password recovery using Firebase Authentication
+- **PDF Management**: Upload, view, and delete construction documents
+- **Interactive Chat**: Ask questions about your documents and get relevant answers
+- **Document References**: Chatbot responses include page references to source information
 
-### `npm start`
+## Technology Stack
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- **Frontend**: React
+- **Authentication**: Firebase Authentication
+- **Storage**: Firebase Storage
+- **PDF Viewer**: react-pdf
+- **UI Library**: Chakra UI
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Setup Instructions
 
-### `npm test`
+1. Clone the repository
+2. Install dependencies:
+   ```
+   npm install
+   ```
+3. Create a `.env` file in the root directory with your Firebase configuration:
+   ```
+   REACT_APP_FIREBASE_API_KEY=your_api_key
+   REACT_APP_FIREBASE_AUTH_DOMAIN=your_auth_domain
+   REACT_APP_FIREBASE_PROJECT_ID=your_project_id
+   REACT_APP_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+   REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+   REACT_APP_FIREBASE_APP_ID=your_app_id
+   ```
+4. Start the development server:
+   ```
+   npm start
+   ```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Development Environments
 
-### `npm run build`
+- **Development**: Local development environment (localhost:3000)
+- **Production**: Deployed on Vercel (frontend) and Render (backend)
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Deployment
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### Frontend (Vercel)
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+1. Create a Vercel account if you don't have one
+2. Install the Vercel CLI: `npm i -g vercel`
+3. Deploy: `vercel`
 
-### `npm run eject`
+## Project Structure
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+- `/src`
+  - `/components`: Reusable UI components
+  - `/pages`: Page-level components
+  - `/contexts`: React context providers
+  - `/utils`: Utility functions including Firebase config
+  - `/hooks`: Custom React hooks
+  - `/assets`: Static assets
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Note
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+This is the frontend portion of the project. The backend will be built with FastAPI and integrated later.
