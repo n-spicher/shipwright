@@ -12,6 +12,7 @@ from app.schemas.keyword_extraction import KeywordExtractionOutput
 from app.utils.security import get_password_hash
 from app.chains.chat import create_chat_chain
 from app.chains.keyword_extraction import create_keyword_extraction_chain
+from app.utils.pdf_processor import process_pdf
 from pydantic import BaseModel
 import PyPDF2
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -22,14 +23,19 @@ from dotenv import load_dotenv
 from enum import Enum
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
+from time import sleep
+from fastapi.responses import StreamingResponse
+from typing import AsyncGenerator
+from contextlib import asynccontextmanager
+from app.utils.helpers import get_collection_name
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('keyword_upload.log'),
+        logging.FileHandler('app.log'),
         logging.StreamHandler()
     ]
 )
@@ -41,7 +47,18 @@ load_dotenv()
 models.Base.metadata.create_all(bind=engine)
 Document.__table__.create(bind=engine, checkfirst=True)
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    try:
+        logger.info("Application startup complete")
+    except Exception as e:
+        logger.error(f"Error during startup: {str(e)}")
+    yield
+    # Shutdown
+    pass
+
+app = FastAPI(lifespan=lifespan)
 
 # Configure CORS
 app.add_middleware(
@@ -57,7 +74,7 @@ chroma_client = chromadb.PersistentClient(path="./data/chroma")
 
 # Initialize text splitter
 text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=1000,
+    chunk_size=10000,
     chunk_overlap=200,
     length_function=len,
     separators=["\n\n", "\n", " ", ""]
@@ -98,7 +115,7 @@ def get_prompt_framing(mode: ChatMode) -> str:
 
 class ChatRequest(BaseModel):
     message: str
-    document_id: str
+    user_id: int
     mode: ChatMode = ChatMode.NONE
 
 class PDFUploadRequest(BaseModel):
@@ -143,17 +160,17 @@ def read_user(user_id: int, db: Session = Depends(get_db)):
 async def ask(request: ChatRequest, db: Session = Depends(get_db)):
     try:
         # Verify document exists
-        document = db.query(Document).filter(Document.id == request.document_id).first()
+        document = db.query(models.User).filter(models.User.id == request.user_id).first()
         if not document:
-            raise HTTPException(status_code=404, detail="Document not found")
+            raise HTTPException(status_code=404, detail="User not found")
 
-        # Get relevant chunks from ChromaDB
-        collection = chroma_client.get_collection("pdf_documents")
+        # Get relevant chunks from ChromaDB using user-specific collection
+        collection_name = get_collection_name(request.user_id)
+        collection = chroma_client.get_collection(collection_name)
         query_embedding = embeddings.embed_query(request.message)
         results = collection.query(
             query_embeddings=[query_embedding],
-            n_results=3,
-            where={"document_id": request.document_id}
+            n_results=7
         )
 
         # Get the chunks and their metadata
@@ -188,19 +205,96 @@ async def ask(request: ChatRequest, db: Session = Depends(get_db)):
             ]
         }
     except Exception as e:
+        logger.error(f"Error in ask: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/upload-pdf", response_model=DocumentSchema)
+async def process_chunks_with_updates(chunks, document, collection, embeddings, rate_limiter):
+    logger.info(f"Starting processing of {len(chunks)} chunks for document: {document.filename}")
+    total_chunks = len(chunks)
+    processed = 0
+    update_frequency = 50
+
+    try:
+        for i, chunk_data in enumerate(chunks):
+            try:
+                logger.debug(f"Processing chunk {i}/{total_chunks} from page {chunk_data['page']}")
+                
+                logger.debug("Waiting for rate limiter...")
+                rate_limiter.wait_if_needed()
+                
+                logger.debug(f"Generating embedding for chunk {i}")
+                embedding = embeddings.embed_query(chunk_data['text'])
+                
+                logger.debug(f"Adding chunk {i} to ChromaDB collection")
+                collection.add(
+                    embeddings=[embedding],
+                    documents=[chunk_data['text']],
+                    ids=[f"doc_{document.id}_{i}"],
+                    metadatas=[{
+                        "document_id": document.id,
+                        "filename": document.filename,
+                        "page": chunk_data['page'],
+                        "chunk_index": i
+                    }]
+                )
+                
+                processed += 1
+                if processed % update_frequency == 0 or processed == total_chunks:
+                    progress = {
+                        "status": "processing",
+                        "processed": processed,
+                        "total": total_chunks,
+                        "percentage": round((processed / total_chunks) * 100, 2)
+                    }
+                    logger.info(f"Progress update: {progress['percentage']}% complete")
+                    yield json.dumps(progress) + "\n"
+                    
+            except Exception as e:
+                logger.error(f"Error processing chunk {i}: {str(e)}", exc_info=True)
+                error_msg = {
+                    "status": "error",
+                    "message": str(e),
+                    "processed": processed,
+                    "total": total_chunks
+                }
+                yield json.dumps(error_msg) + "\n"
+                raise
+
+        logger.info(f"Successfully completed processing all {total_chunks} chunks")
+        yield json.dumps({
+            "status": "complete",
+            "processed": total_chunks,
+            "total": total_chunks,
+            "percentage": 100,
+            "document_id": document.id
+        }) + "\n"
+
+    except Exception as e:
+        logger.error(f"Fatal error in process_chunks_with_updates: {str(e)}", exc_info=True)
+        raise
+
+@app.post("/upload-pdf")
 async def upload_pdf(
     file: UploadFile = File(...),
     user_id: int = Form(...),
     db: Session = Depends(get_db)
 ):
+    """
+    Upload and process a PDF file with streaming progress updates
+    """
     if not file.filename.endswith('.pdf'):
         raise HTTPException(status_code=400, detail="File must be a PDF")
     
     try:
-        # Create document record
+        # Check if user exists
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Read the file content
+        file_content = await file.read()
+        
+        # Create document record in database
         document = Document(
             user_id=user_id,
             filename=file.filename
@@ -209,58 +303,51 @@ async def upload_pdf(
         db.commit()
         db.refresh(document)
         
-        # Read PDF content with page tracking
-        pdf_reader = PyPDF2.PdfReader(file.file)
-        page_texts = []
-        for page_num, page in enumerate(pdf_reader.pages, 1):
-            text = page.extract_text()
-            if text.strip():  # Only add non-empty pages
-                page_texts.append({
-                    'text': text,
-                    'page': page_num
-                })
+        async def generate():
+            try:
+                async for progress in process_pdf(file_content, file.filename, user_id):
+                    # Add document_id to progress updates
+                    progress["document_id"] = document.id
+                    yield json.dumps(progress) + "\n"
+                    
+                    # If we encounter an error, stop processing
+                    if progress.get("status") == "error":
+                        # Delete the document from database if processing failed
+                        db.delete(document)
+                        db.commit()
+                        break
+                        
+            except Exception as e:
+                logger.error(f"Error in generate: {str(e)}")
+                error_response = {
+                    "status": "error",
+                    "error": str(e),
+                    "document_id": document.id
+                }
+                yield json.dumps(error_response) + "\n"
+                # Delete the document from database if processing failed
+                db.delete(document)
+                db.commit()
         
-        # Split text into chunks while preserving page information
-        chunks = []
-        for page_data in page_texts:
-            page_chunks = text_splitter.split_text(page_data['text'])
-            for chunk in page_chunks:
-                chunks.append({
-                    'text': chunk,
-                    'page': page_data['page']
-                })
-        
-        # Create or get collection
-        collection = chroma_client.get_or_create_collection(
-            name="pdf_documents",
-            metadata={"hnsw:space": "cosine"}
+        return StreamingResponse(
+            generate(),
+            media_type="application/x-ndjson",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no"
+            }
         )
         
-        # Generate embeddings and add to ChromaDB
-        for i, chunk_data in enumerate(chunks):
-            embedding = embeddings.embed_query(chunk_data['text'])
-            collection.add(
-                embeddings=[embedding],
-                documents=[chunk_data['text']],
-                ids=[f"doc_{document.id}_{i}"],
-                metadatas=[{
-                    "document_id": document.id,
-                    "filename": document.filename,
-                    "page": chunk_data['page'],
-                    "chunk_index": i
-                }]
-            )
-        
-        return document
-    
     except Exception as e:
-        # If there's an error, delete the document record
-        if 'document' in locals():
-            db.delete(document)
-            db.commit()
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        file.file.close()
+
+@app.get("/health")
+async def health_check():
+    """
+    Health check endpoint
+    """
+    return {"status": "healthy"}
 
 @app.get("/documents/{user_id}", response_model=list[DocumentSchema])
 def list_documents(user_id: int, db: Session = Depends(get_db)):
@@ -468,12 +555,133 @@ async def keyword_upload(
         except Exception as close_error:
             logger.error(f"[{request_id}] Error closing file: {str(close_error)}", exc_info=True)
 
+class RateLimiter:
+    def __init__(self, max_requests_per_minute):
+        self.max_requests = max_requests_per_minute
+        self.requests = []
+    
+    def wait_if_needed(self):
+        now = datetime.now()
+        # Remove requests older than 1 minute
+        self.requests = [req_time for req_time in self.requests 
+                        if now - req_time < timedelta(minutes=1)]
+        
+        if len(self.requests) >= self.max_requests:
+            # Wait until the oldest request is more than 1 minute old
+            sleep_time = 61 - (now - self.requests[0]).total_seconds()
+            if sleep_time > 0:
+                logger.info(f"Rate limit reached, waiting {sleep_time:.2f} seconds")
+                sleep(sleep_time)
+            self.requests = self.requests[1:]
+        
+        self.requests.append(now)
+
+@app.delete("/documents/{user_id}/{document_id}")
+async def delete_document(user_id: int, document_id: str, db: Session = Depends(get_db)):
+    """
+    Delete a document and its associated vector embeddings
+    
+    Args:
+        user_id: ID of the user who owns the document
+        document_id: ID of the document to delete
+        db: Database session
+    
+    Returns:
+        dict: Success message
+    """
+    try:
+        # Check if user exists
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Check if document exists and belongs to user
+        document = db.query(Document).filter(
+            Document.id == document_id,
+            Document.user_id == user_id
+        ).first()
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        # Delete document from ChromaDB
+        try:
+            collection_name = get_collection_name(user_id)
+            collection = chroma_client.get_collection(collection_name)
+            # Delete all chunks associated with this document
+            collection.delete(
+                where={"document_id": document_id}
+            )
+            logger.info(f"Deleted document {document_id} from ChromaDB collection {collection_name}")
+        except Exception as e:
+            logger.error(f"Error deleting document from ChromaDB: {str(e)}")
+            # Continue with database deletion even if ChromaDB deletion fails
+        
+        # Delete document from database
+        db.delete(document)
+        db.commit()
+        
+        return {"message": "Document deleted successfully"}
+        
+    except HTTPException as http_error:
+        raise http_error
+    except Exception as e:
+        logger.error(f"Error deleting document: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/all-documents/{user_id}")
+async def delete_all_user_documents(user_id: int, db: Session = Depends(get_db)):
+    """
+    Delete all documents and their associated vector embeddings for a user
+    
+    Args:
+        user_id: ID of the user whose documents should be deleted
+        db: Database session
+    
+    Returns:
+        dict: Success message with count of deleted documents
+    """
+    try:
+        # Check if user exists
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Get all documents for the user
+        documents = db.query(Document).filter(Document.user_id == user_id).all()
+        document_count = len(documents)
+        
+        # Delete documents from ChromaDB
+        try:
+            collection_name = get_collection_name(user_id)
+            # Delete the entire collection
+            chroma_client.delete_collection(collection_name)
+            logger.info(f"Deleted ChromaDB collection {collection_name}")
+        except Exception as e:
+            logger.error(f"Error deleting ChromaDB collection: {str(e)}")
+            # Continue with database deletion even if ChromaDB deletion fails
+        
+        # Delete all documents from database
+        for document in documents:
+            db.delete(document)
+        db.commit()
+        
+        return {
+            "message": f"Successfully deleted {document_count} documents and associated vector embeddings",
+            "deleted_count": document_count
+        }
+        
+    except HTTPException as http_error:
+        raise http_error
+    except Exception as e:
+        logger.error(f"Error deleting all documents: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8010,
+        port=8010,  # override deafult port
         reload=True,
         reload_dirs=["app"]  # Only watch the app directory for changes
     ) 
