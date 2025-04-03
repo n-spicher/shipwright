@@ -90,3 +90,9 @@ dmypy.json
 
 # Production
 /build
+
+# PDF files
+*.pdf
+*.PDF
+*.pdf.gz
+*.PDF.gz
