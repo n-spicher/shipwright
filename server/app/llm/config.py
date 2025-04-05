@@ -18,7 +18,8 @@ def get_gemini_client(api_key: Optional[str] = None):
     if not api_key:
         raise ValueError("Google API key not found. Please set GOOGLE_API_KEY environment variable.")
     return ChatGoogleGenerativeAI(
-        model="gemini-1.5-pro",
+        #model="gemini-1.5-pro",
+        model="gemini-1.5-flash",
         GOOGLE_API_KEY=api_key,
         temperature=0.7,
         convert_system_message_to_human=True
@@ -33,14 +34,6 @@ def get_embeddings(api_key: Optional[str] = None):
     return GoogleGenerativeAIEmbeddings(
         model="models/embedding-001",
         GOOGLE_API_KEY=api_key
-    )
-
-# Initialize Chroma vector store
-def get_vector_store(api_key: Optional[str] = None):
-    embeddings = get_embeddings(api_key)
-    return Chroma(
-        persist_directory="./data/chroma",
-        embedding_function=embeddings
     )
 
 # Basic chat template

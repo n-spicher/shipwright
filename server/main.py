@@ -28,7 +28,8 @@ from time import sleep
 from fastapi.responses import StreamingResponse
 from typing import AsyncGenerator
 from contextlib import asynccontextmanager
-from app.utils.helpers import get_collection_name
+from app.utils.helpers import get_collection_name, find_applicable_keywords
+import re
 
 # Configure logging
 logging.basicConfig(
@@ -159,41 +160,110 @@ def read_user(user_id: int, db: Session = Depends(get_db)):
 @app.post("/ask")
 async def ask(request: ChatRequest, db: Session = Depends(get_db)):
     try:
-        # Verify document exists
-        document = db.query(models.User).filter(models.User.id == request.user_id).first()
-        if not document:
+        # Verify user exists
+        user = db.query(models.User).filter(models.User.id == request.user_id).first()
+        if not user:
             raise HTTPException(status_code=404, detail="User not found")
+            
+        # Get user keywords from database
+        user_keywords = db.query(Keyword).filter(Keyword.user_id == request.user_id).all()
+        
+        # Find applicable keywords in the message using helper function
+        applicable_keywords = find_applicable_keywords(request.message, user_keywords)
 
         # Get relevant chunks from ChromaDB using user-specific collection
         collection_name = get_collection_name(request.user_id)
         collection = chroma_client.get_collection(collection_name)
+        
+        # Start with semantic search using the original query
         query_embedding = embeddings.embed_query(request.message)
-        results = collection.query(
+        semantic_results = collection.query(
             query_embeddings=[query_embedding],
-            n_results=7
+            n_results=3
         )
-
-        # Get the chunks and their metadata
-        chunks = results['documents'][0]
-        metadatas = results['metadatas'][0]
-
+        
+        # Extract results from semantic search
+        chunks = semantic_results['documents'][0]
+        metadatas = semantic_results['metadatas'][0]
+        distances = semantic_results['distances'][0]
+        
+        # If we have applicable keywords, enhance the results
+        if applicable_keywords:
+            # Create a combined query using the original query and keywords
+            combined_query = request.message
+            keyword_terms = [kw.term for kw in applicable_keywords]
+            
+            # For each applicable keyword, do an additional search
+            all_chunks = []
+            all_metadatas = []
+            all_distances = []
+            seen_ids = set()  # Keep track of chunks we've already seen
+            
+            # First prioritize keyword-specific searches
+            for keyword in applicable_keywords:
+                # Create a query that combines the user query with the keyword example text
+                keyword_query = f"{request.message} {keyword.example_text}"
+                keyword_embedding = embeddings.embed_query(keyword_query)
+                
+                # Get results based on the keyword-enhanced query
+                # Use more results for keywords since we're prioritizing them
+                keyword_results = collection.query(
+                    query_embeddings=[keyword_embedding],
+                    n_results=3
+                )
+                
+                # Add unique results
+                for i, chunk in enumerate(keyword_results['documents'][0]):
+                    chunk_id = keyword_results['ids'][0][i]
+                    if chunk_id not in seen_ids:
+                        all_chunks.append(chunk)
+                        all_metadatas.append(keyword_results['metadatas'][0][i])
+                        all_distances.append(keyword_results['distances'][0][i])
+                        seen_ids.add(chunk_id)
+            
+            # Then add semantic search results that weren't already included
+            for i, chunk in enumerate(chunks):
+                chunk_id = semantic_results['ids'][0][i]
+                if chunk_id not in seen_ids:
+                    all_chunks.append(chunk)
+                    all_metadatas.append(metadatas[i])
+                    all_distances.append(distances[i])
+                    seen_ids.add(chunk_id)
+            
+            # Update the chunks and metadata with the enhanced results
+            chunks = all_chunks
+            metadatas = all_metadatas
+        
         # Combine relevant chunks into context
         context = "\n\n".join(chunks)
         
         # Create chat chain
         chain = create_chat_chain()
         
-        # Prepare prompt with context
+        # Prepare prompt with context and include applicable keywords if any
         prompt = f"""
             {get_prompt_framing(request.mode)}
 
-                Context:
+                <context>
                 {context}
+                </context>
 
-                Question: {request.message}
-            """
-
+                <question>
+                {request.message}
+                </question>
+        """
+        
+        # Add keyword section if applicable keywords were found
+        if applicable_keywords:
+            keyword_section = "\n\nAdditional instructions for specific keywords:\n"
+            for keyword in applicable_keywords:
+                keyword_section += f"- {keyword.term}: {keyword.example_text}\n"
+            
+            prompt += keyword_section
+            
         response = chain.invoke(prompt)
+        
+        # Create response with applicable keywords
         return {
             "response": response,
             "chunks": [
@@ -202,6 +272,14 @@ async def ask(request: ChatRequest, db: Session = Depends(get_db)):
                     "metadata": metadata
                 }
                 for chunk, metadata in zip(chunks, metadatas)
+            ],
+            "applicable_keywords": [
+                {
+                    "id": keyword.id,
+                    "term": keyword.term,
+                    "example_text": keyword.example_text
+                }
+                for keyword in applicable_keywords
             ]
         }
     except Exception as e:
@@ -349,6 +427,10 @@ async def health_check():
     """
     return {"status": "healthy"}
 
+@app.get("/chat_modes")
+async def chat_modes():
+    return [mode.value for mode in ChatMode]
+
 @app.get("/documents/{user_id}", response_model=list[DocumentSchema])
 def list_documents(user_id: int, db: Session = Depends(get_db)):
     # Check if user exists
@@ -464,39 +546,39 @@ async def keyword_upload(
                     logger.error(f"[{request_id}] Error extracting text from page {page_num}: {str(page_error)}")
                     continue
             
-            logger.info(f"[{request_id}] Successfully extracted text from {len(pdf_reader.pages)} pages")
-            logger.debug(f"[{request_id}] Document content length: {len(document_content)} characters")
-            logger.debug(f"[{request_id}] First 500 characters of content: {document_content[:500]}")
         except Exception as pdf_error:
             logger.error(f"[{request_id}] Error reading PDF: {str(pdf_error)}", exc_info=True)
             raise HTTPException(status_code=500, detail="Error reading PDF file")
         
         # Create keyword extraction chain
         logger.info(f"[{request_id}] Creating keyword extraction chain")
-        try:
-            chain = create_keyword_extraction_chain()
-            logger.info(f"[{request_id}] Successfully created keyword extraction chain")
-        except Exception as chain_error:
-            logger.error(f"[{request_id}] Error creating keyword extraction chain: {str(chain_error)}", exc_info=True)
-            raise HTTPException(status_code=500, detail="Error initializing keyword extraction")
+        
+        chain_executor = create_keyword_extraction_chain()
         
         # Extract keywords from document
         logger.info(f"[{request_id}] Starting keyword extraction from document")
         try:
-            logger.debug(f"[{request_id}] Invoking chain with document content")
-            result = chain.invoke({"document_content": document_content})
-            logger.info(f"[{request_id}] Successfully received response from chain")
-            logger.debug(f"[{request_id}] Chain response type: {type(result)}")
-            logger.debug(f"[{request_id}] Chain response: {result}")
+            # Create a clean input dictionary with only what's needed
+            chain_input = {"document_content": document_content}
+            logger.info(f"[{request_id}] Input keys: {list(chain_input.keys())}")
             
-            if not hasattr(result, 'keywords'):
-                logger.error(f"[{request_id}] Chain response missing 'keywords' attribute")
-                logger.error(f"[{request_id}] Response attributes: {dir(result)}")
-                raise ValueError("Chain response missing 'keywords' attribute")
+            try:
+                result = chain_executor(chain_input)
+                logger.info(f"[{request_id}] Extracted {len(result.keywords)} keywords")
+                for idx, keyword in enumerate(result.keywords, 1):
+                    logger.debug(f"[{request_id}] Keyword {idx}: term='{keyword.term}', example_text='{keyword.example_text}'")
+            except ValueError as value_error:
+                error_msg = str(value_error)
+                logger.error(f"[{request_id}] ValueError during chain invocation: {error_msg}")
                 
-            logger.info(f"[{request_id}] Extracted {len(result.keywords)} keywords")
-            for idx, keyword in enumerate(result.keywords, 1):
-                logger.debug(f"[{request_id}] Keyword {idx}: term='{keyword.term}', example_text='{keyword.example_text}'")
+                # Check for specific missing key errors
+                if "Missing some input keys" in error_msg:
+                    logger.error(f"[{request_id}] Input validation failed - provided keys: {list(chain_input.keys())}")
+                    
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"Error during keyword extraction: {error_msg}"
+                )
         except Exception as chain_invoke_error:
             logger.error(f"[{request_id}] Error during chain invocation: {str(chain_invoke_error)}", exc_info=True)
             raise HTTPException(status_code=500, detail="Error during keyword extraction")
