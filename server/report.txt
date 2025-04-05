@@ -1,0 +1,304 @@
+================================================================================
+DOCUMENT QUESTION & ANSWER REPORT
+================================================================================
+
+QUESTION 1:
+What geologic formation underlies the project site, and how is it generally described?
+
+ANSWER:
+The project site is underlain by carbonate bedrock, which weathers differentially to produce a very irregular top of rock profile.  The residual soils present can generally be excavated with conventional earth-moving equipment, but hard bedrock or large boulders will require hoe-ram chipping or blasting for removal.
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
+QUESTION 2:
+What are the primary risks associated with developing in karst terrain?
+
+ANSWER:
+Based on the provided text, the primary risks associated with developing in karst terrain include groundwater contamination, subsidence, and flooding.  Water is the primary cause of these problems.
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
+QUESTION 3:
+How can construction activities such as blasting impact the development of solutioning features like sinkholes?
+
+ANSWER:
+Normal blasting to remove hard rock can create micro-fractures in the bedrock.  These micro-fractures allow greater surface water infiltration into areas that may not normally receive water, potentially disturbing old solutioning features and/or creating new ones.  These features can develop during and/or after construction, causing construction delays and unexpected repair costs.
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
+QUESTION 4:
+What specific recommendations are made to reduce the risk of future sinkhole development during and after construction?
+
+ANSWER:
+To reduce the risk of future sinkhole development, the following measures are recommended:
+
+*   Wells should not be constructed on the site.
+*   Positive slopes should be maintained away from building and pavement areas during and after construction.
+*   All downspout drains should be contained in pipes and routed to discharge points far from buildings into stormwater management (SWM) areas.
+*   New deep utilities should not be located within building areas if possible, and new utility trenches along building perimeters should be located outside the influence zone of new foundations.
+*   Positive slopes should be maintained around footing excavations and the building footprint before and after concrete placement.
+*   SWM ponds and/or bio-retention filters should be lined with a synthetic geomembrane to arrest infiltration and reduce sinkhole risk.  If cost-prohibitive, a minimum 12-inch thick layer of low-permeability clay (permeability no more than 1x10-6 cm/sec) can be used, though this will not eliminate the risk.
+
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
+QUESTION 5:
+What was discovered during the field exploration in terms of subsurface conditions, including the presence of groundwater and bedrock?
+
+ANSWER:
+Field exploration revealed that most borings encountered woodland cover (0.5-6 inches thick), except boring B-101 which had 2 inches of asphalt and 6 inches of stone.  Fill, classified as tan-brown high plasticity clay with a medium stiff consistency (SPT N-value of 5 blows per foot), was found in boring B-101 to a depth of approximately 2 feet below existing grade.  Below the surface material and/or fill, residual soil was present to the planned termination depths or auger refusal on hard rock.  This residual soil generally consisted of red-brown and tan-brown fat clay with varying amounts of sand and rock fragments; silt was found in borings B-108, B-117, B-125, and B-131; and weathered, decomposed limestone was encountered in borings B-105 and B-106 at a depth of 5 feet below existing grades.  SPT N-values in the residuum ranged from 2 to >50 blows per foot, indicating soft to very dense consistency.  Hard rock was encountered in most borings at depths ranging from 1 to 19.3 feet below existing grades, with many borings encountering rock at depths less than 10 feet.  Rock coring revealed hard to very hard gray limestone with recovery percentages of 77-100% and RQD values of 18-87 (mostly 40-50).  Groundwater was found in borings B-107 (18 feet) and B-121 (15 feet) below existing grades; however, water levels were not checked after coring in those borings.  Fluctuations in perched water and groundwater levels may occur due to environmental conditions, surface drainage, and other factors.
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
+QUESTION 6:
+What type and model of hydraulic elevators are specified for the project, and how many elevators are to be installed?
+
+ANSWER:
+This question cannot be answered from the given context.  The provided text mentions elevators in a list of drawing sheets (A8.2 ELEVATOR PLANS, SECTIONS AND DETAILS), but it does not give details about the type, model, or number of elevators.
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
+QUESTION 7:
+What related sections in the contract documents should be coordinated with the hydraulic elevator work?
+
+ANSWER:
+The hydraulic elevator work should be coordinated with the following sections: Section 033000 "Cast-in-Place Concrete", Section 042000 "Unit Masonry", Section 055000 "Metal Fabrications", Section 096519 "Resilient Tile Flooring", and Section 284621.13 "Conventional Fire-Alarm Systems".
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
+QUESTION 8:
+What are the elevator car enclosure finish materials and dimensions specified in the project?
+
+ANSWER:
+The elevator car enclosure has the following dimensions: inside width of 80 inches from side wall to side wall; inside depth of 65 inches from back wall to front wall (return panels); and inside height of not less than 88 inches to the underside of the ceiling.  The front walls (return panels) are satin stainless steel, ASTM A480/A480M, No. 4 finish with integral car door frames. Car fixtures are satin stainless steel, ASTM A480/A480M, No. 4 finish. Side and rear wall panels are plastic laminate. Reveals are satin stainless steel, ASTM A480/A480M, No. 4 finish.  Interior door faces are satin stainless steel, ASTM A480/A480M, No. 4 finish, and door sills are aluminum. The ceiling is a suspended white translucent diffuser with LED lighting and a satin stainless steel frame.  Handrails are 1-1/2 inches round satin stainless steel, at three sides of the car. The floor is prepared to receive resilient flooring (specified in Section 096500 "Resilient Flooring").
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
+QUESTION 9:
+What seismic design requirements must the elevator system comply with, and what is the project's Seismic Design Category?
+
+ANSWER:
+The elevator system must withstand the effects of earthquake motions determined according to ASCE/SEI 7 and comply with elevator seismic requirements in ASME A17.1/CSA B44.  The project's Seismic Design Category is C.
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
+QUESTION 10:
+What standby power operation and energy-saving features are included in the elevator operation system?
+
+ANSWER:
+On activation of standby power, the elevator car returns to a designated floor, parks with doors open, and can be manually put back into service via switches at the fire command station.  Manual operation overrides automatic operation.  When the elevator load exceeds 80% of rated capacity, the doors begin closing. When the elevator is stopped, unoccupied, and the doors are closed, lighting, ventilation fan, and cab displays de-energize after 5 minutes and re-energize before the doors open.
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
+QUESTION 11:
+What components are included in the scope of the incandescent interior lighting section?
+
+ANSWER:
+The incandescent interior lighting section includes luminaire types, materials, and luminaire support components.
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
+QUESTION 12:
+Which specification sections are related to lighting controls and relay-based lighting control systems?
+
+ANSWER:
+Section 260923 ("Lighting Control Devices") is related to automatic lighting controls, including time switches, photoelectric relays, occupancy sensors, and multipole lighting relays and contactors.  Section 260943.23 ("Relay-Based Lighting Controls") is related to manual or programmable control systems with low-voltage control wiring or data communication circuits.
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
+QUESTION 13:
+What is the definition of a luminaire according to the document?
+
+ANSWER:
+A luminaire is a complete lighting unit, including lamp, reflector, and housing.
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
+QUESTION 14:
+What warranty period is specified for luminaires, and who is responsible for the warranty?
+
+ANSWER:
+The provided text mentions several warranty periods for luminaires, depending on the type of luminaire:
+
+* **Incandescent Interior Lighting (Section 265113):** Two years from the date of Substantial Completion.  The manufacturer and installer are jointly responsible.
+* **LED Interior Lighting (Section 265119):** Five years from the date of Substantial Completion. The manufacturer and installer are jointly responsible.
+* **Exterior Lighting (Section 265619):** Two years from the date of Substantial Completion. The manufacturer and installer are jointly responsible.
+
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
+QUESTION 15:
+What compliance standards must electrical components and luminaires meet, including UL and NFPA references?
+
+ANSWER:
+Electrical components, devices, and accessories must be listed and labeled as defined in NFPA 70 by a qualified testing agency and marked for intended location and application.  Luminaires for hazardous locations must be listed and labeled for the indicated class and division of hazard by an NRTL and FM Global.  Additionally, incandescent luminaires must comply with UL 1598, and recessed luminaires must comply with NEMA LE 4.  LED luminaires must also comply with UL 1598 and be California Title 24 compliant.
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
+QUESTION 16:
+What requirements are specified for materials used in luminaires, such as sheet metal and factory-applied labels?
+
+ANSWER:
+Based on the provided text, sheet metal components in luminaires shall be steel unless otherwise indicated, and must be formed and supported to prevent warping and sagging.  Factory-applied labels must comply with UL 1598, include recommended lamps, and be readily visible to service personnel but not visible from normal viewing angles when lamps are in place.  Labels must also include:  "USE ONLY" and the specific lamp type; lamp diameter, shape, size, wattage, and coating; and CCT and CRI for all luminaires.
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
+QUESTION 17:
+What are the acceptable installation methods and support requirements for suspended lighting luminaires?
+
+ANSWER:
+Suspended lighting luminaire installation must comply with NECA 1.  Luminaires should be installed level, plumb, and square with ceilings and walls unless otherwise noted.  Supports must be sized and rated for the luminaire's weight and capable of maintaining position after cleaning and relamping without causing ceiling or wall deflection.  Mounting devices must support a horizontal force of 100% and a vertical force of 400% of the luminaire's weight.
+
+Specific methods depend on the type of suspended luminaire:
+
+* **Pendants and Rods:** If longer than 48 inches, bracing is needed to limit swinging.
+* **Stem-Mounted, Single-Unit Luminaires:**  These should be suspended with twin-stem hangers, supported by an approved outlet box and accessories that hold the stem and damp oscillations. The outlet box must be vertically supported to the building structure using approved devices.
+* **Continuous Rows of Luminaires:** Use tubing or stem for wiring at one point and tubing or rod for suspension for each unit length of the luminaire chassis, including one at each end.
+* **Ceiling grid support is prohibited for pendant luminaires.** Support wires or rods must connect to the building structure.
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
+QUESTION 18:
+What is required when using permanent luminaires for temporary lighting during construction?
+
+ANSWER:
+If approved by the Architect, selected permanent luminaires may be used for temporary lighting.  When construction is substantially complete,  luminaires used for temporary lighting must be cleaned and new lamps installed.
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
+QUESTION 19:
+What are the identification requirements for electrical system components and connections in this section?
+
+ANSWER:
+Section 260553, "Identification for Electrical Systems," details the requirements.  It specifies color-coding for phase identification (e.g., black for Phase A, red for Phase B, blue for Phase C in 208Y/120V circuits), legends indicating voltage and system type, warning labels (including OSHA regulations), and equipment identification labels (black letters on a white field).  Additionally, it outlines requirements for labels (vinyl wraparound, self-adhesive), tapes (marker, self-adhesive vinyl, floor marking, underground line warning), tags (metal), and signs (baked enamel, laminated acrylic or melamine plastic).  The section also mandates the use of consistent designations throughout the project and coordination with project drawings, manufacturer's wiring diagrams, and operation and maintenance manuals.  Finally,  identification must be installed before concealing elements like acoustical ceilings.
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
+QUESTION 20:
+What adjustments and services must be provided within 12 months of substantial completion?
+
+ANSWER:
+Based on the provided text, the manufacturer agrees to repair, restore, or replace elevator work that fails in materials or workmanship within one year from the date of Substantial Completion (Section 142400, 1.10 Warranty).  Additionally, the manufacturer agrees to repair or replace residential appliances or components that fail in materials or workmanship within two years from the date of Substantial Completion (Section 113013, 1.6 Warranty).  A continuing maintenance proposal for elevators, starting on the date initial maintenance service is concluded, must also be submitted (Section 142400, 1.6 Closeout Submittals).
+
+
+SOURCES:
+  1. spec.pdf 
+  2. spec.pdf 
+  3. spec.pdf 
+
+--------------------------------------------------------------------------------
+
