@@ -90,3 +90,12 @@ dmypy.json
 
 # Production
 /build
+
+# PDF files
+*.pdf
+*.PDF
+*.pdf.gz
+*.PDF.gz
+server/report.txt
+server/sample_ask_response.txt
+server/app.log

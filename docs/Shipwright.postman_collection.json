@@ -1,0 +1,240 @@
+{
+	"info": {
+		"_postman_id": "40adb951-dc76-4703-9fc2-518d864bc2bd",
+		"name": "Shipwright",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "7345515",
+		"_collection_link": "https://winslow-v2.postman.co/workspace/Winslow-2.0~60fd59fc-a18f-4dbf-ae49-daf23f390d44/collection/7345515-40adb951-dc76-4703-9fc2-518d864bc2bd?action=share&source=collection_link&creator=7345515"
+	},
+	"item": [
+		{
+			"name": "create user",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n \"email\": \"test@example.com\",\n \"username\": \"testuser\",\n \"password\": \"yourpassword123\"\n }",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8010/users/",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8010",
+					"path": [
+						"users",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "upload-pdf",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": "docs/target/spec.pdf"
+						},
+						{
+							"key": "user_id",
+							"value": "1",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://localhost:8010/upload-pdf",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8010",
+					"path": [
+						"upload-pdf"
+					]
+				},
+				"description": "Generated from cURL: curl -X POST \"http://localhost:8010/upload-pdf\" \\\n  -H \"Content-Type: multipart/form-data\" \\\n  -F \"file=@docs/target/spec.pdf\" \\\n  -F \"user_id=1\""
+			},
+			"response": []
+		},
+		{
+			"name": "keyword-upload",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": [
+								"docs/target/spec.pdf",
+								"/Users/merlin/Development/shipwright/Shipwright-25-03-30/docs/custom_instructions/instructions.pdf"
+							]
+						},
+						{
+							"key": "user_id",
+							"value": "1",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://localhost:8010/keyword-upload",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8010",
+					"path": [
+						"keyword-upload"
+					]
+				},
+				"description": "Generated from cURL: curl -X POST \"http://localhost:8010/upload-pdf\" \\\n  -H \"Content-Type: multipart/form-data\" \\\n  -F \"file=@docs/target/spec.pdf\" \\\n  -F \"user_id=1\""
+			},
+			"response": []
+		},
+		{
+			"name": "GET documents",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8010/documents/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8010",
+					"path": [
+						"documents",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GET user keywords",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8010/keywords/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8010",
+					"path": [
+						"keywords",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "POST ask",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"message\": \"What are the main requirements for this project?\",\n    \"user_id\": 1\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8010/ask",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8010",
+					"path": [
+						"ask"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "DELETE documents",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8010/documents/1/d9118a52-e4af-46ba-8c52-1103c9b94d1c",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8010",
+					"path": [
+						"documents",
+						"1",
+						"d9118a52-e4af-46ba-8c52-1103c9b94d1c"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "DELETE documents all",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8010/all-documents/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8010",
+					"path": [
+						"all-documents",
+						"1"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
