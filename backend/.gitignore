@@ -99,10 +99,3 @@ dmypy.json
 server/report.txt
 server/sample_ask_response.txt
 server/app.log
-
-# env
-**/.env
-**/.env.*
-
-# node
-**/node_modules/
