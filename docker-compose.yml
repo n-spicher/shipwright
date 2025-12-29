@@ -3,15 +3,15 @@ version: '3.8'
 services:
   backend:
     build: 
-      context: ./Shipwright-Backend-25-09-18
+      context: ./backend
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
     volumes:
-      - ./Shipwright-Backend-25-09-18/data:/app/data
-      - ./Shipwright-Backend-25-09-18/sql_app.db:/app/sql_app.db
+      - ./backend/data:/app/data
+      - ./backend/sql_app.db:/app/sql_app.db
     depends_on:
       - chroma
     networks:
@@ -19,7 +19,7 @@ services:
 
   frontend:
     build:
-      context: ./Shipwright-Frontend-25-09-18
+      context: ./frontend
       dockerfile: Dockerfile
     ports:
       - "3000:3000"

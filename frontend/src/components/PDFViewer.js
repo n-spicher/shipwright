@@ -1,8 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 
-// PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+// PDF.js worker - configure before any PDF operations
+if (typeof window !== 'undefined') {
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+  console.log('[PDFViewer] PDF.js version:', pdfjs.version);
+  console.log('[PDFViewer] Worker source configured:', pdfjs.GlobalWorkerOptions.workerSrc);
+}
 
 const PDFViewer = ({ fileUrl }) => {
   const [numPages, setNumPages] = useState(null);
@@ -10,14 +16,34 @@ const PDFViewer = ({ fileUrl }) => {
   const [loading, setLoading] = useState(true);
   const [pageInput, setPageInput] = useState('1');
 
+  useEffect(() => {
+    // Verify worker is configured on mount
+    console.log('[PDFViewer] Component mounted, verifying worker configuration');
+    console.log('[PDFViewer] Current worker source:', pdfjs.GlobalWorkerOptions.workerSrc);
+    if (!pdfjs.GlobalWorkerOptions.workerSrc || !pdfjs.GlobalWorkerOptions.workerSrc.includes('unpkg')) {
+      console.warn('[PDFViewer] Worker source not properly configured, forcing reconfiguration');
+      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+      console.log('[PDFViewer] Worker source reconfigured to:', pdfjs.GlobalWorkerOptions.workerSrc);
+    }
+  }, []);
+
   const onDocumentLoadSuccess = ({ numPages }) => {
+    console.log('[PDFViewer] PDF loaded successfully via CORS, pages:', numPages);
+    console.log('[PDFViewer] File URL:', fileUrl);
     setNumPages(numPages);
+    setLoading(false);
+  };
+
+  const onDocumentLoadError = (error) => {
+    console.error('[PDFViewer] Error loading PDF:', error);
+    console.error('[PDFViewer] File URL was:', fileUrl);
     setLoading(false);
   };
 
   const changePage = (offset) => {
     const newPageNumber = pageNumber + offset;
     if (newPageNumber >= 1 && newPageNumber <= numPages) {
+      console.log('[PDFViewer] Navigating to page:', newPageNumber);
       setPageNumber(newPageNumber);
       setPageInput(newPageNumber.toString());
     }
@@ -31,6 +57,7 @@ const PDFViewer = ({ fileUrl }) => {
     e.preventDefault();
     const page = parseInt(pageInput, 10);
     if (!isNaN(page) && page >= 1 && page <= numPages) {
+      console.log('[PDFViewer] Jumping to page:', page);
       setPageNumber(page);
     } else {
       setPageInput(pageNumber.toString());
@@ -86,16 +113,13 @@ const PDFViewer = ({ fileUrl }) => {
         <Document
           file={fileUrl}
           onLoadSuccess={onDocumentLoadSuccess}
-          onLoadError={(error) => {
-            console.error("Error loading PDF:", error);
-            setLoading(false);
-          }}
-          loading={<></>} // Custom loading component is handled above
+          onLoadError={onDocumentLoadError}
+          loading={<></>}
         >
           <Page 
             pageNumber={pageNumber} 
-            renderTextLayer={false}
-            renderAnnotationLayer={false}
+            renderTextLayer={true}
+            renderAnnotationLayer={true}
             scale={1.0}
           />
         </Document>
