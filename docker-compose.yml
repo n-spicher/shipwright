@@ -1,0 +1,65 @@
+# Docker Compose configuration for Shipwright AI Construction Document Analysis Platform
+
+services:
+  # FastAPI Backend Service - Handles document processing, AI chat, and API endpoints
+  backend:
+    build:
+      context: ./backend # Build from backend directory
+      dockerfile: Dockerfile # Use Dockerfile in that directory
+    ports:
+      - "8000:8000" # Expose backend API on port 8000
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY} # Google Gemini API key for AI functionality
+      # Firebase service account (choose one):
+      # - Provide the full JSON contents in an env var (recommended for CI):
+      - FIREBASE_SERVICE_ACCOUNT_JSON=${FIREBASE_SERVICE_ACCOUNT_JSON}
+      # - Or provide a path inside the container to a mounted service account file:
+      - FIREBASE_SERVICE_ACCOUNT_PATH=${FIREBASE_SERVICE_ACCOUNT_PATH}
+    volumes:
+      # Mount ChromaDB data directory for vector storage persistence
+      - ./backend/data:/app/data
+      # Mount SQLite database file for user/document data persistence
+      - ./backend/sql_app.db:/app/sql_app.db
+    depends_on:
+      - chroma # Wait for ChromaDB to start first
+    networks:
+      - shipwright-network # Connect to shared network
+
+  # React Frontend Service - User interface for document upload and chat
+  frontend:
+    build:
+      context: ./frontend # Build from frontend directory
+      dockerfile: Dockerfile # Use Dockerfile in that directory
+    ports:
+      - "3000:3000" # Expose React app on port 3000
+    environment:
+      # Firebase configuration for authentication and file storage
+      - REACT_APP_FIREBASE_API_KEY=${REACT_APP_FIREBASE_API_KEY}
+      - REACT_APP_FIREBASE_AUTH_DOMAIN=${REACT_APP_FIREBASE_AUTH_DOMAIN}
+      - REACT_APP_FIREBASE_PROJECT_ID=${REACT_APP_FIREBASE_PROJECT_ID}
+      - REACT_APP_FIREBASE_STORAGE_BUCKET=${REACT_APP_FIREBASE_STORAGE_BUCKET}
+      - REACT_APP_FIREBASE_MESSAGING_SENDER_ID=${REACT_APP_FIREBASE_MESSAGING_SENDER_ID}
+      - REACT_APP_FIREBASE_APP_ID=${REACT_APP_FIREBASE_APP_ID}
+    depends_on:
+      - backend # Wait for backend API to be available
+    networks:
+      - shipwright-network # Connect to shared network
+
+  # ChromaDB Vector Database - Stores document embeddings for semantic search
+  chroma:
+    image: chromadb/chroma:latest # Use official ChromaDB image
+    ports:
+      - "8001:8000" # Expose ChromaDB on port 8001 (avoid conflict with backend)
+    volumes:
+      - chroma_data:/chroma/chroma # Persist vector database data
+    networks:
+      - shipwright-network # Connect to shared network
+
+# Named volumes for data persistence across container restarts
+volumes:
+  chroma_data: # Stores ChromaDB vector embeddings
+
+# Custom network for service communication
+networks:
+  shipwright-network:
+    driver: bridge # Standard Docker bridge network
