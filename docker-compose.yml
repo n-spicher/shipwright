@@ -18,8 +18,8 @@ services:
     volumes:
       # Mount ChromaDB data directory for vector storage persistence
       - ./backend/data:/app/data
-      # Mount SQLite database file for user/document data persistence
-      - ./backend/sql_app.db:/app/sql_app.db
+      # Mount directory for SQLite database persistence
+      - ./backend:/app/db_volume
     depends_on:
       - chroma # Wait for ChromaDB to start first
     networks:
