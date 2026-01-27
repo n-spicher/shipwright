@@ -29,8 +29,8 @@ def initialize_firebase():
         pass
     
     try:
-        # Try to get service account path from environment
-        service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
+        # Try to get service account path from environment (check both common env var names)
+        service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH") or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
         
         if service_account_path and os.path.exists(service_account_path):
             # Use explicit service account file

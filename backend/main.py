@@ -6,6 +6,7 @@ from app.models import user as models
 from app.models.document import Document
 from app.models.keyword import Keyword
 from app.schemas import user as schemas
+from app.schemas.user import UserUpdate, UserProfile, SubscriptionTier, SubscriptionStatus
 from app.schemas.document import DocumentCreate, Document as DocumentSchema
 from app.schemas.keyword import KeywordCreate, Keyword as KeywordSchema
 from app.schemas.keyword_extraction import KeywordExtractionOutput
@@ -27,8 +28,9 @@ import logging
 from datetime import datetime, timedelta
 from time import sleep
 from fastapi.responses import StreamingResponse
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 from contextlib import asynccontextmanager
+import stripe
 from app.utils.helpers import get_collection_name, find_applicable_keywords
 import re
 
@@ -43,6 +45,52 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 load_dotenv()
+
+# Configure Stripe
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+
+# Subscription tier configuration
+SUBSCRIPTION_TIERS = {
+    "free": {
+        "name": "Shipwright Free",
+        "price": 0.0,
+        "price_id": os.getenv("STRIPE_PRICE_FREE", "price_1StxupFzOLfPxRPBtGSqu9ac"),
+        "features": [
+            "5 document uploads per month",
+            "Basic AI chat assistance",
+            "Standard response time",
+            "Community support"
+        ]
+    },
+    "pro": {
+        "name": "Shipwright Pro",
+        "price": 20.0,
+        "price_id": os.getenv("STRIPE_PRICE_PRO", "price_1StxvIFzOLfPxRPBa3WMHl4g"),
+        "features": [
+            "Unlimited document uploads",
+            "Advanced AI chat assistance",
+            "Priority response time",
+            "Email support",
+            "Custom keywords",
+            "Export capabilities"
+        ]
+    },
+    "enterprise": {
+        "name": "Shipwright Enterprise",
+        "price": 99.0,
+        "price_id": os.getenv("STRIPE_PRICE_ENTERPRISE", "price_1StxvkFzOLfPxRPBnHHoPxyL"),
+        "features": [
+            "Everything in Pro",
+            "Unlimited team members",
+            "API access",
+            "Custom integrations",
+            "Dedicated support",
+            "SLA guarantee",
+            "Advanced analytics"
+        ]
+    }
+}
 
 # Create database tables
 models.Base.metadata.create_all(bind=engine)
@@ -135,7 +183,7 @@ class ChatRequest(BaseModel):
 class PDFUploadRequest(BaseModel):
     user_id: int
 
-def get_current_user(authorization: str = Header(None), db: Session = Depends(get_db)) -> models.User:
+def get_current_user(authorization: str = Header(None, alias="Authorization"), db: Session = Depends(get_db)) -> models.User:
     """
     FastAPI dependency to get current user from Firebase token.
     Extracts and verifies Firebase ID token from Authorization header.
@@ -191,6 +239,49 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_user)
     return db_user
+
+# /users/me routes MUST be defined before /users/{user_id} to avoid route conflict
+@app.get("/users/me", response_model=UserProfile)
+async def get_current_user_profile(current_user: models.User = Depends(get_current_user)):
+    """Get the current authenticated user's profile"""
+    logger.info(f"[profile] GET /users/me called for user_id={current_user.id} email={current_user.email}")
+    return current_user
+
+@app.put("/users/me", response_model=UserProfile)
+async def update_current_user_profile(
+    user_update: UserUpdate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update the current authenticated user's profile"""
+    try:
+        logger.info(f"[profile] PUT /users/me called for user_id={current_user.id}")
+        if user_update.first_name is not None:
+            current_user.first_name = user_update.first_name
+        if user_update.last_name is not None:
+            current_user.last_name = user_update.last_name
+        if user_update.company_name is not None:
+            current_user.company_name = user_update.company_name
+        if user_update.email is not None:
+            existing_user = db.query(models.User).filter(
+                models.User.email == user_update.email,
+                models.User.id != current_user.id
+            ).first()
+            if existing_user:
+                raise HTTPException(status_code=400, detail="Email already in use")
+            current_user.email = user_update.email
+        
+        db.commit()
+        db.refresh(current_user)
+        logger.info(f"[profile] Updated user profile user_id={current_user.id}")
+        return current_user
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"[profile] Error updating profile: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to update profile")
 
 @app.get("/users/{user_id}", response_model=schemas.User)
 def read_user(user_id: int, db: Session = Depends(get_db)):
@@ -794,12 +885,316 @@ async def delete_all_user_documents(user_id: int, db: Session = Depends(get_db))
         logger.error(f"Error deleting all documents: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+# ============================================================================
+# PROFILE MANAGEMENT ENDPOINTS (DELETE and RECOVER only - GET/PUT moved above)
+# ============================================================================
+
+@app.delete("/users/me")
+async def delete_current_user_account(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Soft delete the current user's account. Recoverable for 30 days."""
+    try:
+        current_user.is_deleted = True
+        current_user.deleted_at = datetime.utcnow()
+        current_user.is_active = False
+        
+        if current_user.stripe_subscription_id:
+            try:
+                stripe.Subscription.cancel(current_user.stripe_subscription_id)
+                logger.info(f"[profile] Cancelled Stripe subscription for user_id={current_user.id}")
+            except Exception as stripe_error:
+                logger.error(f"[profile] Error cancelling Stripe subscription: {str(stripe_error)}")
+        
+        db.commit()
+        logger.info(f"[profile] Soft deleted user account user_id={current_user.id}")
+        
+        return {
+            "message": "Account scheduled for deletion",
+            "recovery_period_days": 30,
+            "deletion_date": (current_user.deleted_at + timedelta(days=30)).isoformat()
+        }
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"[profile] Error deleting account: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete account")
+
+@app.post("/users/me/recover")
+async def recover_deleted_account(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Recover a soft-deleted account within the 30-day recovery period"""
+    try:
+        if not current_user.is_deleted:
+            raise HTTPException(status_code=400, detail="Account is not deleted")
+        
+        if current_user.deleted_at:
+            days_since_deletion = (datetime.utcnow() - current_user.deleted_at).days
+            if days_since_deletion > 30:
+                raise HTTPException(status_code=400, detail="Recovery period has expired")
+        
+        current_user.is_deleted = False
+        current_user.deleted_at = None
+        current_user.is_active = True
+        
+        db.commit()
+        logger.info(f"[profile] Recovered user account user_id={current_user.id}")
+        
+        return {"message": "Account recovered successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"[profile] Error recovering account: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to recover account")
+
+# ============================================================================
+# SUBSCRIPTION MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@app.get("/subscription/tiers", response_model=list[SubscriptionTier])
+async def get_subscription_tiers():
+    """Get all available subscription tiers with their features"""
+    return [
+        SubscriptionTier(
+            tier=tier_key,
+            name=tier_data["name"],
+            price=tier_data["price"],
+            price_id=tier_data["price_id"] if tier_key != "free" else None,
+            features=tier_data["features"]
+        )
+        for tier_key, tier_data in SUBSCRIPTION_TIERS.items()
+    ]
+
+@app.get("/subscription/status", response_model=SubscriptionStatus)
+async def get_subscription_status(current_user: models.User = Depends(get_current_user)):
+    """Get the current user's subscription status"""
+    cancel_at_period_end = False
+    
+    if current_user.stripe_subscription_id:
+        try:
+            subscription = stripe.Subscription.retrieve(current_user.stripe_subscription_id)
+            cancel_at_period_end = subscription.cancel_at_period_end
+        except Exception as e:
+            logger.error(f"[subscription] Error fetching Stripe subscription: {str(e)}")
+    
+    return SubscriptionStatus(
+        tier=current_user.subscription_tier or "free",
+        status=current_user.subscription_status or "active",
+        current_period_end=current_user.subscription_current_period_end,
+        cancel_at_period_end=cancel_at_period_end
+    )
+
+@app.post("/subscription/create-checkout-session")
+async def create_checkout_session(
+    tier: str,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a Stripe Checkout session for subscription upgrade"""
+    try:
+        if tier not in SUBSCRIPTION_TIERS:
+            raise HTTPException(status_code=400, detail="Invalid subscription tier")
+        
+        if tier == "free":
+            raise HTTPException(status_code=400, detail="Cannot checkout for free tier")
+        
+        tier_config = SUBSCRIPTION_TIERS[tier]
+        
+        if not current_user.stripe_customer_id:
+            customer = stripe.Customer.create(
+                email=current_user.email,
+                metadata={"user_id": current_user.id}
+            )
+            current_user.stripe_customer_id = customer.id
+            db.commit()
+            logger.info(f"[subscription] Created Stripe customer for user_id={current_user.id}")
+        
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        
+        checkout_session = stripe.checkout.Session.create(
+            customer=current_user.stripe_customer_id,
+            payment_method_types=["card"],
+            line_items=[{
+                "price": tier_config["price_id"],
+                "quantity": 1
+            }],
+            mode="subscription",
+            success_url=f"{frontend_url}/profile?session_id={{CHECKOUT_SESSION_ID}}&success=true",
+            cancel_url=f"{frontend_url}/profile?canceled=true",
+            metadata={
+                "user_id": current_user.id,
+                "tier": tier
+            }
+        )
+        
+        logger.info(f"[subscription] Created checkout session for user_id={current_user.id} tier={tier}")
+        return {"checkout_url": checkout_session.url, "session_id": checkout_session.id}
+        
+    except HTTPException:
+        raise
+    except stripe.error.StripeError as e:
+        logger.error(f"[subscription] Stripe error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Stripe error: {str(e)}")
+    except Exception as e:
+        logger.error(f"[subscription] Error creating checkout session: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to create checkout session")
+
+@app.post("/subscription/create-portal-session")
+async def create_portal_session(current_user: models.User = Depends(get_current_user)):
+    """Create a Stripe Customer Portal session for managing subscription"""
+    try:
+        if not current_user.stripe_customer_id:
+            raise HTTPException(status_code=400, detail="No subscription found")
+        
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        
+        portal_session = stripe.billing_portal.Session.create(
+            customer=current_user.stripe_customer_id,
+            return_url=f"{frontend_url}/profile"
+        )
+        
+        logger.info(f"[subscription] Created portal session for user_id={current_user.id}")
+        return {"portal_url": portal_session.url}
+        
+    except HTTPException:
+        raise
+    except stripe.error.StripeError as e:
+        logger.error(f"[subscription] Stripe portal error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Stripe error: {str(e)}")
+    except Exception as e:
+        logger.error(f"[subscription] Error creating portal session: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to create portal session")
+
+@app.post("/subscription/cancel")
+async def cancel_subscription(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Cancel the current subscription at period end"""
+    try:
+        if not current_user.stripe_subscription_id:
+            raise HTTPException(status_code=400, detail="No active subscription to cancel")
+        
+        subscription = stripe.Subscription.modify(
+            current_user.stripe_subscription_id,
+            cancel_at_period_end=True
+        )
+        
+        current_user.subscription_status = "canceled"
+        db.commit()
+        
+        logger.info(f"[subscription] Cancelled subscription for user_id={current_user.id}")
+        return {
+            "message": "Subscription will be canceled at period end",
+            "cancel_at": datetime.fromtimestamp(subscription.current_period_end).isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except stripe.error.StripeError as e:
+        logger.error(f"[subscription] Stripe cancel error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Stripe error: {str(e)}")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"[subscription] Error cancelling subscription: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to cancel subscription")
+
+@app.post("/subscription/webhook")
+async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
+    """Handle Stripe webhook events"""
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+    
+    try:
+        if STRIPE_WEBHOOK_SECRET:
+            event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+        else:
+            event = stripe.Event.construct_from(json.loads(payload), stripe.api_key)
+    except ValueError as e:
+        logger.error(f"[webhook] Invalid payload: {str(e)}")
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError as e:
+        logger.error(f"[webhook] Invalid signature: {str(e)}")
+        raise HTTPException(status_code=400, detail="Invalid signature")
+    
+    event_type = event["type"]
+    data = event["data"]["object"]
+    
+    logger.info(f"[webhook] Received event type={event_type}")
+    
+    try:
+        if event_type == "checkout.session.completed":
+            customer_id = data.get("customer")
+            subscription_id = data.get("subscription")
+            tier = data.get("metadata", {}).get("tier", "pro")
+            
+            user = db.query(models.User).filter(models.User.stripe_customer_id == customer_id).first()
+            
+            if user:
+                user.stripe_subscription_id = subscription_id
+                user.subscription_tier = tier
+                user.subscription_status = "active"
+                
+                if subscription_id:
+                    sub = stripe.Subscription.retrieve(subscription_id)
+                    user.subscription_current_period_end = datetime.fromtimestamp(sub.current_period_end)
+                
+                db.commit()
+                logger.info(f"[webhook] Activated subscription for user_id={user.id} tier={tier}")
+        
+        elif event_type == "customer.subscription.updated":
+            subscription_id = data.get("id")
+            status = data.get("status")
+            
+            user = db.query(models.User).filter(models.User.stripe_subscription_id == subscription_id).first()
+            
+            if user:
+                user.subscription_status = status
+                user.subscription_current_period_end = datetime.fromtimestamp(data.get("current_period_end", 0))
+                db.commit()
+                logger.info(f"[webhook] Updated subscription for user_id={user.id} status={status}")
+        
+        elif event_type == "customer.subscription.deleted":
+            subscription_id = data.get("id")
+            
+            user = db.query(models.User).filter(models.User.stripe_subscription_id == subscription_id).first()
+            
+            if user:
+                user.subscription_tier = "free"
+                user.subscription_status = "active"
+                user.stripe_subscription_id = None
+                user.subscription_current_period_end = None
+                db.commit()
+                logger.info(f"[webhook] Subscription deleted for user_id={user.id}, reverted to free")
+        
+        elif event_type == "invoice.payment_failed":
+            subscription_id = data.get("subscription")
+            
+            user = db.query(models.User).filter(models.User.stripe_subscription_id == subscription_id).first()
+            
+            if user:
+                user.subscription_status = "past_due"
+                db.commit()
+                logger.info(f"[webhook] Payment failed for user_id={user.id}")
+        
+        return {"status": "success"}
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"[webhook] Error processing event: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Webhook processing failed")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8010,
+        port=8000,
         reload=True,
         reload_dirs=["app"],
         reload_excludes=["*.log", "data/*", "*.db"]

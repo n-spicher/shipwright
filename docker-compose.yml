@@ -7,11 +7,16 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    env_file:
+      - ./backend/.env
     environment:
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - FIREBASE_SERVICE_ACCOUNT_PATH=/app/firebase-service-account.json
+      - DB_DIR=/app/db
+      - FRONTEND_URL=http://localhost:3000
     volumes:
       - ./backend/data:/app/data
-      - ./backend/sql_app.db:/app/sql_app.db
+      - backend_db:/app/db
+      - ./backend/firebase-service-account.json:/app/firebase-service-account.json:ro
     depends_on:
       - chroma
     networks:
@@ -46,6 +51,7 @@ services:
 
 volumes:
   chroma_data:
+  backend_db:
 
 networks:
   shipwright-network:
