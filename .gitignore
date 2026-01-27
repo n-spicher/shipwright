@@ -106,3 +106,6 @@ server/app.log
 
 # node
 **/node_modules/
+
+# Firebase
+backend/firebase-service-account.json
