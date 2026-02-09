@@ -6,6 +6,7 @@ import Login from './components/Login';
 import Signup from './components/Signup';
 import ForgotPassword from './components/ForgotPassword';
 import Dashboard from './pages/Dashboard';
+import ProfileSetup from './pages/ProfileSetup';
 import './App.css';
 
 function App() {
@@ -20,6 +21,11 @@ function App() {
             <Route path="/dashboard" element={
               <PrivateRoute>
                 <Dashboard />
+              </PrivateRoute>
+            } />
+            <Route path="/profile" element={
+              <PrivateRoute>
+                <ProfileSetup />
               </PrivateRoute>
             } />
             <Route path="*" element={<Navigate to="/login" />} />

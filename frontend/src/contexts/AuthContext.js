@@ -4,7 +4,9 @@ import {
   signInWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  updateEmail as firebaseUpdateEmail,
+  updatePassword as firebaseUpdatePassword
 } from 'firebase/auth';
 import { auth } from '../utils/firebase';
 
@@ -74,6 +76,40 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // Function to update email
+  async function updateEmail(newEmail) {
+    try {
+      setError('');
+      console.log('[AuthContext] updateEmail:start', { newEmail });
+      if (!auth.currentUser) {
+        throw new Error('No user logged in');
+      }
+      await firebaseUpdateEmail(auth.currentUser, newEmail);
+      console.log('[AuthContext] updateEmail:success');
+    } catch (error) {
+      setError(error.message);
+      console.error("Email update error:", error);
+      throw error;
+    }
+  }
+
+  // Function to update password
+  async function updatePassword(newPassword) {
+    try {
+      setError('');
+      console.log('[AuthContext] updatePassword:start');
+      if (!auth.currentUser) {
+        throw new Error('No user logged in');
+      }
+      await firebaseUpdatePassword(auth.currentUser, newPassword);
+      console.log('[AuthContext] updatePassword:success');
+    } catch (error) {
+      setError(error.message);
+      console.error("Password update error:", error);
+      throw error;
+    }
+  }
+
   // Set up an observer for changes to the user's sign-in state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -97,7 +133,9 @@ export function AuthProvider({ children }) {
     signup,
     login,
     logout,
-    resetPassword
+    resetPassword,
+    updateEmail,
+    updatePassword
   };
 
   return (

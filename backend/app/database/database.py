@@ -1,8 +1,13 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+import os
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./db_volume/sql_app.db"
+# Use /app/db directory in Docker, or local directory for development
+DB_DIR = os.getenv("DB_DIR", ".")
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_DIR}/sql_app.db"
+
+print(f"[database] Using database path: {SQLALCHEMY_DATABASE_URL}")
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
